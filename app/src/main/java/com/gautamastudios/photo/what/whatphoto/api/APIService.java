@@ -5,7 +5,7 @@ import android.net.Uri;
 public class APIService {
 
     //// TODO: 2017/09/04 hide in app
-    private static final String hideinapp = "FR88IA2J6kavxRCXQkLye3NyNfdZSUBM9H5MP7GG";
+    private static final String hideinapp = "***";
 
     //// TODO: 2017/09/04 Build in all params
     //https://github.com/500px/api-documentation/blob/master/endpoints/photo/GET_photos.md
