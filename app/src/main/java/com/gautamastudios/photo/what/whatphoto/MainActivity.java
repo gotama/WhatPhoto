@@ -1,11 +1,22 @@
 package com.gautamastudios.photo.what.whatphoto;
 
-import android.support.v7.app.AppCompatActivity;
+import android.content.Context;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
+import android.view.animation.AnimationUtils;
+import android.view.animation.LayoutAnimationController;
 
+import com.gautamastudios.photo.what.whatphoto.api.APICallback;
+import com.gautamastudios.photo.what.whatphoto.api.APIService;
+import com.gautamastudios.photo.what.whatphoto.api.model.PhotoResponse;
 import com.gautamastudios.photo.what.whatphoto.view.EndlessScrollListener;
+import com.gautamastudios.photo.what.whatphoto.view.adapter.PhotoAdapter;
+import com.google.gson.Gson;
+
+import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -18,38 +29,74 @@ public class MainActivity extends AppCompatActivity {
     //// TODO: 2017/09/04 Endless scroller documentation
     //https://github.com/codepath/android_guides/wiki/Endless-Scrolling-with-AdapterViews-and-RecyclerView
 
-    // Store a member variable for the listener
-    private EndlessScrollListener scrollListener;
+    private RecyclerView recyclerView;
+    private PhotoResponse photoResponse;
+    private PhotoAdapter photoAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        // Configure the RecyclerView
-        RecyclerView rvItems = (RecyclerView) findViewById(R.id.rv_endless_scroller);
-        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this);
-        rvItems.setLayoutManager(linearLayoutManager);
-        // Retain an instance so that you can call `resetState()` for fresh searches
-        scrollListener = new EndlessScrollListener(linearLayoutManager) {
+
+        recyclerView = (RecyclerView) findViewById(R.id.rv_endless_scroller);
+        LinearLayoutManager lm = new LinearLayoutManager(this);
+        recyclerView.setLayoutManager(lm);
+
+        photoAdapter = new PhotoAdapter();
+        recyclerView.setAdapter(photoAdapter);
+
+        recyclerView.addOnScrollListener(new EndlessScrollListener(lm) {
+
             @Override
             public void onLoadMore(int page, int totalItemsCount, RecyclerView view) {
-                // Triggered only when new data needs to be appended to the list
-                // Add whatever code is needed to append new items to the bottom of the list
-                loadNextDataFromApi(page);
+                Log.d("PAGIN", "Page : " + page + " - totalItemsCount : " + totalItemsCount);
+
+                if (page <= photoAdapter.getTotalPageCount()) {
+                    APIService.requestPhotos(new APICallback() {
+
+                        @Override
+                        public void onSuccess(JSONObject jsonObject) {
+                            photoResponse = new Gson().fromJson(jsonObject.toString(), PhotoResponse.class);
+                            Log.d("JOURNAL", new Gson().toJson(photoResponse));
+
+                            photoAdapter.setPhotoResponse(photoResponse);
+                            runLayoutAnimation(recyclerView, R.anim.layout_animation_from_right);
+                        }
+
+                        @Override
+                        public void onFail(String message, int code) {
+
+                        }
+                    }, "", String.valueOf(page));
+                }
             }
-        };
-        // Adds the scroll listener to RecyclerView
-        rvItems.addOnScrollListener(scrollListener);
+        });
+
+        APIService.requestPhotos(new APICallback() {
+
+            @Override
+            public void onSuccess(JSONObject jsonObject) {
+                photoResponse = new Gson().fromJson(jsonObject.toString(), PhotoResponse.class);
+                Log.d("JOURNAL", new Gson().toJson(photoResponse));
+
+                photoAdapter.setPhotoResponse(photoResponse);
+                runLayoutAnimation(recyclerView, R.anim.layout_animation_from_right);
+            }
+
+            @Override
+            public void onFail(String message, int code) {
+
+            }
+        }, "", "1");
     }
 
-    // Append the next page of data into the adapter
-    // This method probably sends out a network request and appends new data items to your adapter.
-    public void loadNextDataFromApi(int offset) {
-        // Send an API request to retrieve appropriate paginated data
-        //  --> Send the request including an offset value (i.e `page`) as a query parameter.
-        //  --> Deserialize and construct new model objects from the API response
-        //  --> Append the new data objects to the existing set of items inside the array of items
-        //  --> Notify the adapter of the new items made with `notifyItemRangeInserted()`
+    private void runLayoutAnimation(final RecyclerView recyclerView, final int animationResourceID) {
+        final Context context = recyclerView.getContext();
+
+        final LayoutAnimationController controller = AnimationUtils.loadLayoutAnimation(context, animationResourceID);
+
+        recyclerView.setLayoutAnimation(controller);
+        recyclerView.getAdapter().notifyDataSetChanged();
+        recyclerView.scheduleLayoutAnimation();
     }
 }
